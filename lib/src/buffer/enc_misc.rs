@@ -123,6 +123,7 @@ impl EncMiscParameterRateControl {
         icq_quality_factor: u32,
         max_qp: u32,
         quality_factor: u32,
+        #[cfg(feature = "libva_1_10_or_higher")]
         target_frame_size: u32,
     ) -> Self {
         Self(MiscEncParamBuffer::new_boxed(
@@ -138,6 +139,7 @@ impl EncMiscParameterRateControl {
                 ICQ_quality_factor: icq_quality_factor,
                 max_qp,
                 quality_factor,
+                #[cfg(feature = "libva_1_10_or_higher")]
                 target_frame_size,
                 ..Default::default()
             },
