@@ -313,6 +313,14 @@ impl Buffer {
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
             },
+            BufferType::EncPackedHeaderParameter(ref mut wrapper) => (
+                wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
+                std::mem::size_of_val(wrapper.inner_mut()),
+            ),
+
+            BufferType::EncPackedHeaderData(ref data) => {
+                (data.as_ptr() as *mut std::ffi::c_void, data.len())
+            }
         };
 
         // Safe because `self` represents a valid `VAContext`. `ptr` and `size` are also ensured to
@@ -387,6 +395,10 @@ pub enum BufferType {
     ProcPipelineParameter(proc_pipeline::ProcPipelineParameterBuffer),
     /// Abstraction over `VAQMatrixBufferType`.
     QMatrix(QMatrix),
+    /// Abstraction over `VAEncPackedHeaderParameterBufferType`. Needed for H264 so far.
+    EncPackedHeaderParameter(EncPackedHeaderParameter),
+    /// Abstraction over `VAEncPackedHeaderDataBufferType`. Needed for H264 so far.
+    EncPackedHeaderData(Vec<u8>),
 }
 
 impl BufferType {
@@ -423,7 +435,16 @@ impl BufferType {
             BufferType::ProcPipelineParameter(_) => {
                 bindings::VABufferType::VAProcPipelineParameterBufferType
             }
+
             BufferType::QMatrix(_) => bindings::VABufferType::VAQMatrixBufferType,
+
+            BufferType::EncPackedHeaderParameter(_) => {
+                bindings::VABufferType::VAEncPackedHeaderParameterBufferType
+            }
+
+            BufferType::EncPackedHeaderData(_) => {
+                bindings::VABufferType::VAEncPackedHeaderDataBufferType
+            }
         }
     }
 }
@@ -660,4 +681,55 @@ pub enum EncMiscParameter {
     QualityLevel(EncMiscParameterBufferQualityLevel),
     /// Wrapper over `VAEncMiscParameterBuffer` with `VAEncMiscParameterQuantization`.
     Quantization(EncMiscParameterQuantization),
+}
+
+/// Abstraction over the `VAEncPackedHeaderType` enum values we support.
+pub enum EncPackedHeaderType {
+    /// Sequence header
+    Sequence,
+    /// Picture header
+    Picture,
+    /// Slice header
+    Slice,
+    /// Raw data
+    RawData,
+}
+
+impl EncPackedHeaderType {
+    /// Returns the inner FFI packed header type.
+    pub(crate) fn inner(&self) -> bindings::VAEncPackedHeaderType::Type {
+        match self {
+            EncPackedHeaderType::Sequence => {
+                bindings::VAEncPackedHeaderType::VAEncPackedHeaderSequence
+            }
+            EncPackedHeaderType::Picture => {
+                bindings::VAEncPackedHeaderType::VAEncPackedHeaderPicture
+            }
+            EncPackedHeaderType::Slice => bindings::VAEncPackedHeaderType::VAEncPackedHeaderSlice,
+            EncPackedHeaderType::RawData => {
+                bindings::VAEncPackedHeaderType::VAEncPackedHeaderRawData
+            }
+        }
+    }
+}
+
+// FIXME: does it need to be boxed?
+/// Abstraction over `EncPackedHeaderParameterNuffer` types we support
+pub struct EncPackedHeaderParameter(Box<bindings::VAEncPackedHeaderParameterBuffer>);
+
+impl EncPackedHeaderParameter {
+    /// Creates a new `EncPackedHeaderParameter` from the given `VAEncPackedHeaderParameterBuffer`.
+    pub fn new(type_: EncPackedHeaderType, length_in_bits: u32, has_emulation: bool) -> Self {
+        Self(Box::new(bindings::VAEncPackedHeaderParameterBuffer {
+            type_: type_.inner(),
+            bit_length: length_in_bits,
+            has_emulation_bytes: has_emulation as u8,
+            ..Default::default()
+        }))
+    }
+
+    /// Returns a mutable reference to the inner `VAEncPackedHeaderParameterBuffer`.
+    pub fn inner_mut(&mut self) -> &mut bindings::VAEncPackedHeaderParameterBuffer {
+        &mut self.0
+    }
 }
