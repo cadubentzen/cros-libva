@@ -26,6 +26,7 @@ crc32fast = "1.2.1"
 default = ["av1", "h265"]
 av1 = []
 h265 = []
+libva_1_10_or_higher = []
 libva_1_16_or_higher = []
 libva_1_19_or_higher = []
 libva_1_20_or_higher = []
