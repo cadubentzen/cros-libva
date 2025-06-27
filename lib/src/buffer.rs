@@ -4,17 +4,21 @@
 
 //! Wrappers and helpers around `VABuffer`s.
 
+#[cfg(feature = "av1")]
 mod av1;
 mod enc_misc;
 mod h264;
+#[cfg(feature = "h265")]
 mod hevc;
 mod mpeg2;
 mod vp8;
 mod vp9;
 
+#[cfg(feature = "av1")]
 pub use av1::*;
 pub use enc_misc::*;
 pub use h264::*;
+#[cfg(feature = "h265")]
 pub use hevc::*;
 pub use mpeg2::*;
 pub use vp8::*;
@@ -46,6 +50,7 @@ impl Buffer {
             BufferType::SliceParameter(SliceParameter::H264(ref mut params)) => {
                 params.inner_mut().len()
             }
+            #[cfg(feature = "av1")]
             BufferType::SliceParameter(SliceParameter::AV1(ref mut params)) => {
                 params.inner_mut().len()
             }
@@ -70,18 +75,22 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 PictureParameter::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 PictureParameter::HEVCRext(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 PictureParameter::HEVCScc(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "av1")]
                 PictureParameter::AV1(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -105,14 +114,17 @@ impl Buffer {
                     wrapper.inner_mut().as_mut_ptr() as *mut std::ffi::c_void,
                     std::mem::size_of::<bindings::VASliceParameterBufferH264>(),
                 ),
+                #[cfg(feature = "h265")]
                 SliceParameter::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 SliceParameter::HEVCRext(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "av1")]
                 SliceParameter::AV1(ref mut wrapper) => (
                     wrapper.inner_mut().as_mut_ptr() as *mut std::ffi::c_void,
                     std::mem::size_of::<bindings::VASliceParameterBufferAV1>(),
@@ -132,6 +144,7 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 IQMatrix::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -152,6 +165,7 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 EncSequenceParameter::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -164,6 +178,7 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "av1")]
                 EncSequenceParameter::AV1(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -175,6 +190,7 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 EncPictureParameter::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -187,6 +203,7 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "av1")]
                 EncPictureParameter::AV1(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -198,10 +215,12 @@ impl Buffer {
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "h265")]
                 EncSliceParameter::HEVC(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
                 ),
+                #[cfg(feature = "av1")]
                 EncSliceParameter::AV1(ref mut wrapper) => (
                     wrapper.inner_mut() as *mut _ as *mut std::ffi::c_void,
                     std::mem::size_of_val(wrapper.inner_mut()),
@@ -364,12 +383,16 @@ pub enum PictureParameter {
     VP9(vp9::PictureParameterBufferVP9),
     /// Wrapper over VAPictureParameterBufferH264.
     H264(h264::PictureParameterBufferH264),
+    #[cfg(feature = "h265")]
     /// Wrapper over VAPictureParameterBufferHEVC
     HEVC(hevc::PictureParameterBufferHEVC),
+    #[cfg(feature = "h265")]
     /// Wrapper over VAPictureParameterBufferHEVCRext
     HEVCRext(hevc::PictureParameterBufferHEVCRext),
+    #[cfg(feature = "h265")]
     /// Wrapper over VAPictureParameterBufferHEVCScc
     HEVCScc(hevc::PictureParameterBufferHEVCScc),
+    #[cfg(feature = "av1")]
     /// Wrapper over VADecPictureParameterBufferAV1
     AV1(av1::PictureParameterBufferAV1),
 }
@@ -384,10 +407,13 @@ pub enum SliceParameter {
     VP9(vp9::SliceParameterBufferVP9),
     /// Wrapper over VASliceParameterBufferH264
     H264(h264::SliceParameterBufferH264),
+    #[cfg(feature = "h265")]
     /// Wrapper over VASliceParameterBufferHEVC
     HEVC(hevc::SliceParameterBufferHEVC),
+    #[cfg(feature = "h265")]
     /// Wrapper over VASliceParameterBufferHEVCRext
     HEVCRext(hevc::SliceParameterBufferHEVCRext),
+    #[cfg(feature = "av1")]
     /// Wrapper over VASliceParameterBufferAV1
     AV1(av1::SliceParameterBufferAV1),
 }
@@ -400,6 +426,7 @@ pub enum IQMatrix {
     VP8(vp8::IQMatrixBufferVP8),
     /// Abstraction over `VAIQMatrixBufferH264`
     H264(h264::IQMatrixBufferH264),
+    #[cfg(feature = "h265")]
     /// Abstraction over `VAIQMatrixBufferHEVC`
     HEVC(hevc::IQMatrixBufferHEVC),
 }
@@ -408,12 +435,14 @@ pub enum IQMatrix {
 pub enum EncSequenceParameter {
     /// Abstraction over `VAEncSequenceParameterBufferH264`
     H264(h264::EncSequenceParameterBufferH264),
+    #[cfg(feature = "h265")]
     /// Abstraction over `VAEncSequenceParameterBufferHEVC`
     HEVC(hevc::EncSequenceParameterBufferHEVC),
     /// Abstraction over `VAEncSequenceParameterBufferVP8`
     VP8(vp8::EncSequenceParameterBufferVP8),
     /// Abstraction over `VAEncSequenceParameterBufferVP9`
     VP9(vp9::EncSequenceParameterBufferVP9),
+    #[cfg(feature = "av1")]
     /// Abstraction over `VAEncSequenceParameterBufferAV1`
     AV1(av1::EncSequenceParameterBufferAV1),
 }
@@ -422,12 +451,14 @@ pub enum EncSequenceParameter {
 pub enum EncPictureParameter {
     /// Abstraction over `VAEncPictureParameterBufferH264`
     H264(h264::EncPictureParameterBufferH264),
+    #[cfg(feature = "h265")]
     /// Abstraction over `VAEncPictureParameterBufferHEVC`
     HEVC(hevc::EncPictureParameterBufferHEVC),
     /// Abstraction over `VAEncPictureParameterBufferVP8`
     VP8(vp8::EncPictureParameterBufferVP8),
     /// Abstraction over `VAEncPictureParameterBufferVP9`
     VP9(vp9::EncPictureParameterBufferVP9),
+    #[cfg(feature = "av1")]
     /// Abstraction over `VAEncPictureParameterBufferAV1`
     AV1(av1::EncPictureParameterBufferAV1),
 }
@@ -436,8 +467,10 @@ pub enum EncPictureParameter {
 pub enum EncSliceParameter {
     /// Abstraction over `VAEncSliceParameterBufferH264`
     H264(h264::EncSliceParameterBufferH264),
+    #[cfg(feature = "h265")]
     /// Abstraction over `VAEncSliceParameterBufferHEVC`
     HEVC(hevc::EncSliceParameterBufferHEVC),
+    #[cfg(feature = "av1")]
     /// Abstraction over `VAEncTileGroupBufferAV1`
     AV1(av1::EncTileGroupBufferAV1),
 }
