@@ -426,6 +426,11 @@ impl<D: SurfaceMemoryDescriptor> Drop for Surface<D> {
     }
 }
 
+// It's safe to Send a Surface to another thread if the Memory Descriptor is Send,
+// but it's not safe to Sync because we can have side effects on &self methods,
+// so multi-threaded access needs a Mutex.
+unsafe impl<D: SurfaceMemoryDescriptor + Send> Send for Surface<D> {}
+
 /// Safe wrapper for the `object` member of `VADRMPRIMESurfaceDescriptor`.
 pub struct DrmPrimeSurfaceDescriptorObject {
     pub fd: OwnedFd,
