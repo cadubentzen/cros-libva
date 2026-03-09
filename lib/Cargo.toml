@@ -11,6 +11,7 @@ readme.workspace = true
 
 [features]
 dlopen = []
+vendored = ["dlopen"]
 
 [dependencies]
 thiserror = "1"

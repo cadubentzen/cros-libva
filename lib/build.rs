@@ -59,29 +59,85 @@ fn get_va_version(va_h_path: &str) -> (u32, u32) {
     (numbers[0], numbers[1])
 }
 
+/// When using vendored headers, generate `va_version.h` from the submodule's
+/// `va_version.h.in` template by extracting version numbers from `meson.build`.
+fn generate_vendored_version_header(out_dir: &Path) {
+    let meson_build = read_to_string("libva/meson.build")
+        .expect("failed to read libva/meson.build — is the submodule initialized?");
+
+    // Extract va_api_{major,minor,micro}_version from meson.build
+    let extract = |var_name: &str| -> String {
+        let re = Regex::new(&format!(r"{}\s*=\s*(\d+)", var_name)).unwrap();
+        re.captures(&meson_build)
+            .unwrap_or_else(|| panic!("{} not found in libva/meson.build", var_name))[1]
+            .to_string()
+    };
+
+    let major = extract("va_api_major_version");
+    let minor = extract("va_api_minor_version");
+    let micro = extract("va_api_micro_version");
+    let version = format!("{}.{}.{}", major, minor, micro);
+
+    let template = read_to_string("libva/va/va_version.h.in")
+        .expect("failed to read libva/va/va_version.h.in");
+
+    let generated = template
+        .replace("@VA_API_MAJOR_VERSION@", &major)
+        .replace("@VA_API_MINOR_VERSION@", &minor)
+        .replace("@VA_API_MICRO_VERSION@", &micro)
+        .replace("@VA_API_VERSION@", &version);
+
+    let va_dir = out_dir.join("va");
+    std::fs::create_dir_all(&va_dir).expect("failed to create va dir in OUT_DIR");
+    std::fs::write(va_dir.join("va_version.h"), generated)
+        .expect("failed to write va_version.h");
+}
+
 fn main() {
     // Do not require dependencies when generating docs.
     if std::env::var("CARGO_DOC").is_ok() || std::env::var("DOCS_RS").is_ok() {
         return;
     }
 
-    let va_h_path = env::var(CROS_LIBVA_H_PATH_ENV)
-        .or_else(|e| {
-            if let VarError::NotPresent = e {
-                let libva_library = pkg_config::probe_library("libva");
-                match libva_library {
-                    Ok(_) => Ok(libva_library.unwrap().include_paths[0]
-                        .clone()
-                        .into_os_string()
-                        .into_string()
-                        .unwrap()),
-                    Err(e) => panic!("libva is not found in system: {}", e),
+    let va_h_path = if cfg!(feature = "vendored") {
+        let out_dir = PathBuf::from(env::var("OUT_DIR").expect("`OUT_DIR` is not set"));
+        generate_vendored_version_header(&out_dir);
+
+        // Tell cargo to re-run if submodule files change
+        println!("cargo:rerun-if-changed=libva/meson.build");
+        println!("cargo:rerun-if-changed=libva/va/va_version.h.in");
+
+        // We need two include paths:
+        // 1. The submodule root so `#include <va/va.h>` resolves to `libva/va/va.h`
+        // 2. OUT_DIR so `#include <va/va_version.h>` resolves to the generated header
+        //
+        // Return the submodule path; OUT_DIR is added as an extra clang arg below.
+        let manifest_dir =
+            PathBuf::from(env::var("CARGO_MANIFEST_DIR").expect("`CARGO_MANIFEST_DIR` is not set"));
+        manifest_dir
+            .join("libva")
+            .into_os_string()
+            .into_string()
+            .unwrap()
+    } else {
+        env::var(CROS_LIBVA_H_PATH_ENV)
+            .or_else(|e| {
+                if let VarError::NotPresent = e {
+                    let libva_library = pkg_config::probe_library("libva");
+                    match libva_library {
+                        Ok(_) => Ok(libva_library.unwrap().include_paths[0]
+                            .clone()
+                            .into_os_string()
+                            .into_string()
+                            .unwrap()),
+                        Err(e) => panic!("libva is not found in system: {}", e),
+                    }
+                } else {
+                    Err(e)
                 }
-            } else {
-                Err(e)
-            }
-        })
-        .expect("libva header location is unknown");
+            })
+            .expect("libva header location is unknown")
+    };
 
     let va_lib_path = env::var(CROS_LIBVA_LIB_PATH_ENV).unwrap_or_default();
     // Check the path exists.
@@ -93,7 +149,12 @@ fn main() {
         );
     }
 
-    let (major, minor) = get_va_version(&va_h_path);
+    let va_version_path = if cfg!(feature = "vendored") {
+        env::var("OUT_DIR").expect("`OUT_DIR` is not set")
+    } else {
+        va_h_path.clone()
+    };
+    let (major, minor) = get_va_version(&va_version_path);
     println!("libva {}.{} is used to generate bindings", major, minor);
     let va_check_version = |desired_major: u32, desired_minor: u32| {
         major > desired_major || (major == desired_major && minor >= desired_minor)
@@ -149,6 +210,10 @@ fn main() {
     let mut bindings_builder = vaapi_gen_builder(bindgen::builder()).header(WRAPPER_PATH);
     if !va_h_path.is_empty() {
         bindings_builder = bindings_builder.clang_arg(format!("-I{}", va_h_path));
+    }
+    if cfg!(feature = "vendored") {
+        let out_dir = PathBuf::from(env::var("OUT_DIR").expect("`OUT_DIR` is not set"));
+        bindings_builder = bindings_builder.clang_arg(format!("-I{}", out_dir.display()));
     }
     let bindings = bindings_builder
         .generate()
